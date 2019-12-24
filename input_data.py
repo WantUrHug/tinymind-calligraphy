@@ -3,7 +3,7 @@ import os
 from PIL import Image
 import numpy as np
 
-class Dataset():
+class MyDataset():
 
 	def __init__(self, train_dir, test_dir = None, img_h = 512, img_w = 512):
 
