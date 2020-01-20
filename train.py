@@ -30,6 +30,7 @@ def CAL_TOP5_ACC(logits, labels):
 
 if __name__ == "__main__":
 
+	#设置训练时的常数
 	BATCH_SIZE = 32
 	CLASS = 100
 	IMG_H, IMG_W = 256, 256
