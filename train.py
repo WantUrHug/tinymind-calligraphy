@@ -16,7 +16,7 @@ def CAL_TOP1_ACC(logits, labels):
 def CAL_TOP5_ACC(logits, labels):
 	'''
 	计算训练过程中的 TOP5 准确率，logits 是模型的输出，labels 是唯一的结果，比较输出中
-	概率最高的前五个字符，如果包含了labels中指代的字符，即视为正确。
+	概率最高的前五个字符，如果包含了 labels 中指代的字符，即视为正确。
 	'''
 
 	sorted_logits_index = tf.argsort(logits, direction = "DESCENDING")
@@ -27,15 +27,37 @@ def CAL_TOP5_ACC(logits, labels):
 
 	return tf.reduce_mean(result)
 
+def CAL_TOP5_ACC_FOR_TESTING(logits, labels, type = 0):
+	'''
+	在测试集上，我们得到的一个输出，是没有一个单一的结果来比对的，只有一个top5标签。那么如何衡量准确率呢？
+	有两种思路，一种就是输出中的最高概率类别是否在给出的 top5 中；第二种就是，对输出也形成一个 top5 类别，
+	直接比较这两个 top5 的重叠成分。
+	'''
+	if type == 0:
+		N = 1
+	else:
+		N = 5
+	sorted_logits_index = tf.argsort(logits, direction = "DESCENDING")
+	threshold = tf.cast(tf.ones_like(sorted_logits_index)*N, tf.int32)
+	topN = tf.cast(tf.less(sorted_logits_index, threshold), tf.float32)
+
+	result = topN*labels
+	if type == 0:
+		return tf.reduce_mean(tf.reduce_sum(result, 1))
+	else:
+		result = tf.reduce_sum(result, 1)*0.2# *0.2=/5
+		result = tf.reduce_mean(result)
+		return result
+
 if __name__ == "__main__":
 
 	#设置训练时的常数
-	TRAIN_BATCH_SIZE = 32
+	TRAIN_BATCH_SIZE = 64
 	TEST_BATCH_SIZE	= 128
 	CLASS = 100
 	IMG_H, IMG_W = 256, 256
 	LEARNING_RATE = 10E-3
-	TRAIN_STEPS = 100
+	TRAIN_STEPS = 2000
 	#多少步打印一次训练情况
 	CHECK_STEP = 20
 	#多少步保存一次数据
@@ -70,6 +92,7 @@ if __name__ == "__main__":
 	train_op = tf.train.GradientDescentOptimizer(learning_rate = LEARNING_RATE).minimize(loss_op)
 	top1_acc_op = CAL_TOP1_ACC(logits = outputs, labels = Y)
 	top5_acc_op = CAL_TOP5_ACC(logits = outputs, labels = Y)
+	test_top5_acc_op = CAL_TOP5_ACC_FOR_TESTING(logits = outputs, labels = Y, type = 1)
 
 	history = {}
 	history["train_loss"] = []
@@ -99,7 +122,12 @@ if __name__ == "__main__":
 				#使用训练集数据更新模型，同时计算对应的损失和准确率
 				_, train_loss, top1_acc, top5_acc = sess.run((train_op, loss_op, top1_acc_op, top5_acc_op), feed_dict = {X:train_data, Y:train_labels})
 				#计算在测试集上的损失数值和top5准确率
-				test_loss, test_top5_acc = sess.run((loss_op, top5_acc_op), feed_dict = {X:test_data, Y:test_labels})
+				test_loss, test_top5_acc = sess.run((loss_op, test_top5_acc_op), feed_dict = {X:test_data, Y:test_labels})
+				history["train_loss"].append(train_loss)
+				history["train_top1_acc"].append(top1_acc)
+				history["train_top5_acc"].append(top5_acc)
+				history["test_loss"].append(test_loss)
+				history["test_top5_acc"].append(test_top5_acc)
 				string_tuple = (step, train_loss, top1_acc*100, top5_acc*100, test_loss, test_top5_acc*100)
 				print("Step %s, train loss %.2f, top1 acc %.2f%%, top5 acc %.2f%%, test loss %.2f, test top5 acc %.2f%%."%string_tuple)
 			else:
@@ -110,17 +138,19 @@ if __name__ == "__main__":
 			#if step % CHECK_STEP == 0:
 			#	saver.save(sess, os.path.join("D:\\GitFile\\calligraphy\\models\\TrainResult", "simple"), global_step = step)
 
-		num_check = range(1, len(history["train_loss"]) + 1)
-		plt.subplot(1, 3, 1)
-		plt.plot(num_check, history["train_loss"], "r", label = "train loss")
-		plt.plot(num_check, history["test_loss"], 'b', label = "test loss")
+	num_check = range(1, len(history["train_loss"]) + 1)
+	plt.subplot(1, 3, 1)
+	plt.plot(num_check, history["train_loss"], "r", label = "train loss")
+	plt.plot(num_check, history["test_loss"], 'b', label = "test loss")
+	plt.legend()
+	
+	plt.subplot(1, 3, 2)
+	plt.plot(num_check, history["train_top1_acc"], "r", label = "train top1 acc")
+	plt.legend()
 
-		plt.subplot(1, 3, 2)
-		plt.plot(num_check, history["train_top1_acc"], "r", label = "train top1 acc")
+	plt.subplot(1, 3, 3)
+	plt.plot(num_check, history["train_top5_acc"], "r", label = "train top5 acc")
+	plt.plot(num_check, history["test_top5_acc"], "b", label = "test top5 acc")
 
-		plt.subplot(1, 3, 3)
-		plt.plot(num_check, history["train_top5_acc"], "r", label = "train top5 acc")
-		plt.plot(num_check, history["test_top5_acc"], "b", label = "test top5 acc")
-
-		plt.legend()
-		plt.show()
+	plt.legend()
+	plt.show()
