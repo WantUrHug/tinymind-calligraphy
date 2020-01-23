@@ -18,7 +18,9 @@ def get_largest_size_of_all(src_dir):
 			filepath = os.path.join(item_path, filename)
 			im = np.array(Image.open(filepath))
 			im_h, im_w = im.shape[:2]
-			if im_h > 1000 or im_w > 1000:
+			if im_h > 1024 or im_w > 1024:
+				img = Image.fromarray(im)
+				img.show()
 				continue
 			if im_h > max_h:
 				max_h = im_h

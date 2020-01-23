@@ -17,14 +17,21 @@ def top5_to_index(top5_value):
 	'''
 	输入是一个 numpy.ndarray，其中是 0 和 1，需要提取 1 所在的 index，重新返回
 	'''
-	for in in top5_value:
-		
+	outputs = []
+	for array in top5_value:
+		ids = []
+		for i, value in enumerate(array):
+			if value == 1:
+				ids.append(i)
+		outputs.append(ids)
+	return outputs
 
 
 if __name__ == "__main__":
 	
 	final_dir = "D:\\BaiduNetdiskDownload\\TMD\\test2"
-	dataset = MyDataset(final_dir = final_dir)
+	train_dir = "D:\\BaiduNetdiskDownload\\TMD\\train\\train"
+	dataset = MyDataset(train_dir = train_dir, final_dir = final_dir)
 	#dataset = MyDataset()
 
 	models_dir = "D:\\GitFile\\calligraphy\\models\\TrainResult"
@@ -53,9 +60,12 @@ if __name__ == "__main__":
 			for i, (name_list, final_data) in enumerate(dataset.final_datagen()):
 
 				top5_onehot = sess.run(top5, feed_dict = {X: final_data})
-
-				for j, top5_value in enumerate(top5_onehot):
-
-
-
-
+				word_ids = top5_to_index(top5_onehot)
+				#print(word_ids)
+				#for j, top5_value in enumerate(top5_onehot):
+				for j, index in enumerate(word_ids):
+					word_ls = [dataset.label_dict[ind] for ind in index]
+					#print(word_ls)
+					words = word_ls[0] + word_ls[1] + word_ls[2] + word_ls[3] + word_ls[4]
+					file.writelines(name_list[j] + "," + words + "\n")
+			
